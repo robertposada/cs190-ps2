@@ -1,4 +1,4 @@
-//
+ //
 //  CPUState.swift
 //  Counter
 //
@@ -112,7 +112,78 @@ class CPUState {
     // Make use of the enums RegisterASpecialValues and RegisterBSpecialValues so that you don't have to hard
     // code "2" to mean a decimal point (similarly for the other special values).
     func canonicalize() {
-        let registerC = Register(fromDecimalString: "01000000000002")
+        
+        let registerB = registers[RegId.B.rawValue]
+        let registerA = registers[RegId.A.rawValue]
+        
+        //counting where the index of the "2" is is registerB
+        var decimalPosition: Int = 0
+        for i in 0..<RegisterLength {
+            if registerB.nibbles[i] == 2 {
+                decimalPosition = i
+            }
+        }
+        
+        //Here I look for the index of the first non-zero in registerA, ignoring the 13th index as it might display a 9 to represent a negative input. registerX is simply a mutable copy of registerA, made so that I can manipulate the register in while loop
+        var registerX = registerA
+        var firstNumberInA = 12
+        
+        if registerA.nibbles[12] == 0 {
+            var running: Bool = true
+            
+            while running {
+                if registerA.nibbles[firstNumberInA] != 0 {
+                    running = false
+                }
+                else {
+                    firstNumberInA -= 1
+                }
+            }
+            registerX.nibbles[12] = registerA.nibbles[firstNumberInA]
+            registerX.nibbles[firstNumberInA] = 0
+            
+        }
+        
+        //Here I simply copy the contents of modified registerX as a string into registerCString
+        var registerCString: String = ""
+        for i in 0..<14 {
+            registerCString += String(registerX.nibbles[i])
+        }
+        
+        
+        //This is where I begin calculating the exponent that will be shown in registerC. First I take the difference between the indices firstNumberInA and decimalPosition, calculated in the loops above
+        var exponent = firstNumberInA - decimalPosition
+        
+        //converting the exponent in registerA into an integer in order to further compute exponent
+        let registerAExponent: Int = Int(10*(registerA.nibbles[1]) + registerA.nibbles[0])
+        
+        //Using equation shown in class, and depending on whether the exponent is negative or positive, I calculate the integer value that will be the exponent in registerC
+        if registerA.nibbles[2] == 9 {
+            exponent += (100-registerAExponent)
+        }
+        else {
+            exponent += registerAExponent
+        }
+        
+        //convert exponent into a string, in order to modify registerCString
+        var registerCExponent = String(exponent)
+        if exponent < 10 {
+            registerCExponent = registerCExponent + "0"
+        }
+        else {
+            registerCExponent = String(registerCExponent.characters.reverse())
+        }
+    
+        //Here I modify the registerCString to get its final form/value
+        let exponentRange = registerCString.startIndex.advancedBy(0)..<registerCString.startIndex.advancedBy(2)
+        registerCString.replaceRange(exponentRange, with: registerCExponent)
+        
+        let reversedCString = String(registerCString.characters.reverse())
+        
+
+        let registerC = Register(fromDecimalString: reversedCString)
+        print(registerC)
+        
         registers[RegId.C.rawValue] = registerC
     }
     
@@ -134,7 +205,6 @@ class CPUState {
         let register = registers[regId.rawValue]
         return register.asDecimalString()
     }
-    
 }
 
 enum RegId: Int {
